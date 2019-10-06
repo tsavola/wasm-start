@@ -26,9 +26,10 @@ func main() {
 
 func main2() (err error) {
 	var (
-		output string
-		set    string
-		unset  bool
+		output   string
+		set      string
+		unset    bool
+		unexport bool
 	)
 
 	flag.Usage = func() {
@@ -39,6 +40,7 @@ func main2() (err error) {
 	flag.StringVar(&output, "o", output, "output filename")
 	flag.StringVar(&set, "s", set, "set start function to exported function name")
 	flag.BoolVar(&unset, "u", unset, "unset start function")
+	flag.BoolVar(&unexport, "x", unexport, "unexport all export functions")
 	flag.Parse()
 
 	if flag.NArg() != 1 {
@@ -47,7 +49,7 @@ func main2() (err error) {
 	}
 	input := flag.Arg(0)
 
-	if (output != "") != ((set != "") || unset) || (set != "" && unset) {
+	if (output != "") != ((set != "") || unset || unexport) || (set != "" && unset) {
 		fmt.Fprintf(flag.CommandLine.Output(), "Inconsistent options\n")
 		os.Exit(2)
 	}
@@ -106,9 +108,20 @@ func main2() (err error) {
 	if err != nil {
 		return
 	}
-	_, err = io.CopyN(out, in, sections.Sections[section.Start].Offset)
-	if err != nil {
-		return
+	if unexport {
+		_, err = io.CopyN(out, in, sections.Sections[section.Export].Offset)
+		if err != nil {
+			return
+		}
+		_, err = in.Seek(sections.Sections[section.Export].Length, io.SeekCurrent)
+		if err != nil {
+			return
+		}
+	} else {
+		_, err = io.CopyN(out, in, sections.Sections[section.Start].Offset)
+		if err != nil {
+			return
+		}
 	}
 	_, err = in.Seek(sections.Sections[section.Start].Length, io.SeekCurrent)
 	if err != nil {
